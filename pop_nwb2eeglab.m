@@ -84,6 +84,8 @@ if (length(condValues) > 1 || ~isempty(data.units)) && nargin < 2
     if res.spikes
         options = [ options { 'importspikes' fastif(res.spikes, 'on', 'off')  } ];
     end
+else
+    options = varargin;
 end
 
 opt = finputcheck(options, { 'typefield' 'string' '' ''; 'importspikes' 'string' { 'on' 'off' } 'off'});
