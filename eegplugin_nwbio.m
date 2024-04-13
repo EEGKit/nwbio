@@ -36,11 +36,12 @@ function vers = eegplugin_nwbio(fig, trystrs, catchstrs)
     
     % add folder to path
     % ------------------
-    p = which('eegplugin_nwbio.m');
-    p = p(1:findstr(p,'eegplugin_nwbio.m')-1);
-    if ~exist('eegplugin_nwbio')
+    p = which('nwbRead.m');
+    if isempty(p)
+        p = which('eegplugin_nwbio.m');
+        p = p(1:findstr(p,'eegplugin_nwbio.m')-1);
         addpath( p );
-        addpath( fullfile(p, 'matnwb' ));
+        addpath( fullfile(p, 'matnwb') );
     end
     
     % find import data menu
