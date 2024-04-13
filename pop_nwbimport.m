@@ -19,7 +19,7 @@
 %
 % Author: Arnaud Delorme, UCSD
 %
-% See also: eeglab()
+% See also: POP_NWBEXPORT, EEGLAB
 
 % Copyright (C) 2024 Arnaud Delorme, UCSD
 %
@@ -67,8 +67,13 @@ try
 catch
     condValues = {};
 end
+defaulttypefield = '';
+if any(strmatch('type', condValues, 'exact'))
+    fprintf('Event field ''type'' found, and set to EEGLAB event type\n');
+    defaulttypefield = 'type';
+end
 
-if (length(condValues) > 1 || ~isempty(data.units)) && nargin < 2
+if (length(condValues) > 1 || ~isempty(data.units)) && nargin < 2 && isempty(defaulttypefield)
     promptstr    = { ...
         { 'style'  'text'       'string' ['Which event information is primary' 10 '(this will define EEG event types):'] } ...
         { 'style'  'popupmenu'  'string' condValues 'tag' 'typefield' 'value' 1 'enable', fastif(isempty(condValues), 'off', 'on') } ...
@@ -94,7 +99,7 @@ else
     options = varargin;
 end
 
-opt = finputcheck(options, { 'typefield' 'string' '' ''; 
+opt = finputcheck(options, { 'typefield' 'string' '' defaulttypefield; 
                              'importspikes' 'string' { 'on' 'off' } 'off'; ...
                              'ElectricalSeries' 'string' '' ''});
 if ischar(opt)
@@ -126,28 +131,36 @@ if isempty(indVal)
     error('No usable data (ElectricalSeries) found in file.')
 end
 EEG.data = values{indVal}.data.load;
+if isequal(values{indVal}.data_unit, 'volts')
+    disp('Converting data from volts to microvolts')
+    EEG.data = EEG.data/1e6;
+else
+    fprintf(2, 'Warning: unknow data unit');
+end
 
 % electrodes
 chans = data.general_extracellular_ephys_electrodes.toTable();
 chanlabels = cell(1,size(EEG.data,1));
-if isfield(chans, 'label'), chanlabels = chans.label; end
+if ismember('label', chans.Properties.VariableNames), chanlabels = chans.label; end
 if ~isempty(chanlabels{1})
     options = { 'labels', chanlabels };
-    if isfield(chans, 'group_name') && ~isempty(chans.group_name), options = [ options { 'type', chans.group_name } ]; end
-    if isfield(chans, 'x') && ~isempty(chans.x)                  , options = [ options { 'x', mattocell(chans.x) } ]; end
-    if isfield(chans, 'y') && ~isempty(chans.y)                  , options = [ options { 'y', mattocell(chans.y) } ]; end
-    if isfield(chans, 'z') && ~isempty(chans.z)                  , options = [ options { 'z', mattocell(chans.z) } ]; end
+    if ismember('group_name', chans.Properties.VariableNames) && ~isempty(chans.group_name), options = [ options { 'type', chans.group_name } ]; end
+    if ismember('x', chans.Properties.VariableNames) && ~isempty(chans.x)                  , options = [ options { 'X', mattocell(chans.x) } ]; end
+    if ismember('y', chans.Properties.VariableNames) && ~isempty(chans.y)                  , options = [ options { 'Y', mattocell(chans.y) } ]; end
+    if ismember('z', chans.Properties.VariableNames) && ~isempty(chans.z)                  , options = [ options { 'Z', mattocell(chans.z) } ]; end
     EEG.chanlocs = struct(options{:});
+    if isfield(EEG.chanlocs, 'X');
+        EEG = eeg_checkchanlocs(EEG);
+    end
 end
 EEG.nbchan = size(EEG.data,2);
-EEG = eeg_checkset(EEG);
 
 % sampling rate
 if ~isempty(values{indVal}.starting_time_rate)
     EEG.srate = values{indVal}.starting_time_rate;
 else
-    eeglab_warning([ 'Sampling rate not found, using the ''timestamps'' information' 10 ...
-        'and computing approximate sampling rate (data will not be interpolated' ])
+    eeglab_warning([ 'Sampling rate not found, using the ''timestamps'' information;' 10 ...
+        'computing approximate sampling rate (data will not be interpolated)' ])
     timestamps = values{indVal}.timestamps.load;
     EEG.srate = 1/mean(diff(timestamps));
 end
@@ -156,27 +169,35 @@ end
 EEG.etc.nwb = data;
 
 % import events
-if ~isempty(data.intervals_trials.timeseries)
-    event_lat = EEG.srate * (data.intervals_trials.start_time.data.load+1);
-    event_len = EEG.srate * (data.intervals_trials.stop_time.data.load+1);
+if ~isempty(data.intervals_trials.start_time)
+    event_lat  = EEG.srate * (data.intervals_trials.start_time.data.load) + 1;
+    event_stop = EEG.srate * (data.intervals_trials.stop_time.data.load) + 1;
+    event_dur  = event_stop - event_lat;
 
     condValues = data.intervals_trials.vectordata.keys;
     if ~isempty(condValues)
         if isempty(opt.typefield), opt.typefield = condValues{1}; end
     end
+    % this section needs optimization to load all values at once
+    % see channel import above where arrays are created
     for iEvent = 1:length(event_lat)
         for iVal = 1:length(condValues)
             tmpVal = get(data.intervals_trials.vectordata, condValues{iVal}).data(iEvent);
-            EEG.event(iEvent).(condValues{iVal}) = tmpVal{1};
+            if iscell(tmpVal)
+                EEG.event(iEvent).(condValues{iVal}) = tmpVal{1};
+            elseif ~isnan(tmpVal)
+                EEG.event(iEvent).(condValues{iVal}) = tmpVal;
+            end
             % set type
             if strcmpi(condValues{iVal}, opt.typefield)
                 EEG.event(iEvent).type = EEG.event(iEvent).(condValues{iVal});
             end
         end
         EEG.event(iEvent).latency  = event_lat(iEvent);
-        EEG.event(iEvent).duration = event_len(iEvent);
+        if event_dur(iEvent) ~= 0
+            EEG.event(iEvent).duration = event_dur(iEvent);
+        end
     end
-    EEG = eeg_checkset(EEG);
 end
 
 % import spikes 
@@ -197,12 +218,9 @@ if strcmpi(opt.importspikes, 'on')
         eventTmp = struct('type', spikeStr, 'latency', mattocell(spikeLatency),  eventFields{:});
         EEG.event = [ EEG.event eventTmp' ];
     end
-
-    % sort events
-    eventLat = [ EEG.event.latency ];
-    [~,inds] = sort(eventLat);
-    EEG.event = EEG.event(inds);
 end
+EEG = eeg_checkset(EEG, 'eventconsistency');
+EEG = eeg_checkset(EEG);
 
 % history
 if isempty(options)

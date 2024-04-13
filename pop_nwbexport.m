@@ -12,11 +12,12 @@
 %               interface to browse for a data file.
 % 
 % Optional general information (see NWB documentation):
-%   'session_description'  - [string] default to empty
+%   'session_description'  - [string] default is "Exported from EEGLAB"
 %   'identifier'           - [string] default to empty
-%   'session_start_time'   - [string] (dd-mmm-yyyy HH:MM:SS)
+%   'session_start_time'   - [string] (dd-mmm-yyyy HH:MM:SS) default empty
+%   'timestamps_reference_time' - [string] (dd-mmm-yyyy HH:MM:SS) default empty
 %   'general_experimenter' - [string] default to empty
-%   'general_session_id'   - [string] default to empty
+%   'general_session_id'   - [string] default to EEG.session
 %   'general_institution'  - [string] default to empty
 %   'general_related_publications' - [string] default to empty
 %
@@ -30,6 +31,7 @@
 % Optional device information (see NWB documentation):
 %   'manufacturer'            - [string] default to empty
 %   'manufacturerdescription' - [string] default to empty
+%   'electrodelocations'      - [string] default to empty
 %
 % EEGLAB specific options:
 %   'eventfields' - [cell] list of event fields to export. Default to all
@@ -43,7 +45,7 @@
 %
 % Author: Arnaud Delorme, UCSD, 2024
 %
-% See also: eeglab()
+% See also: POP_NWBIMPORT, EEGLAB
 
 % Copyright (C) 2024 Arnaud Delorme, UCSD
 %
@@ -72,7 +74,7 @@
 % ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
 % THE POSSIBILITY OF SUCH DAMAGE.
 
-function com = pop_nwbexport(EEG, varargin)
+function com = pop_nwbexport(EEG, fileName, varargin)
 
 if nargin < 1
     help pop_nwbexport;
@@ -88,12 +90,15 @@ if nargin < 2
         return;
     end
     fileName = fullfile(filepath, filename);
-else
-    fileName = varargin{1};
 end
 [tmp1,tmp2,ext] = fileparts(fileName);
 if ~isequal('.nwb', lower(ext))
+    fprintf('Changing extension of input file to ".nwb"\n');
     fileName = fullfile(tmp1, [ tmp2 '.nwb' ]);
+end
+if exist(fileName, 'file')
+    fprintf('File exist, deleting it...\n')
+    delete(fileName);
 end
 
 subject = EEG.subject;
@@ -115,11 +120,11 @@ if ~isempty(EEG.event)
     colnames = fieldnames(EEG.event);
     colnames = setdiff(colnames, { 'urevent', 'latency', 'duration' });
 end
-if nargin  < 3
+if nargin < 2
     promptstr    = { ...
         { 'style'  'text'       'string' 'General information' 'fontweight' 'bold' } ...
         { 'style'  'text'       'string' 'Session description' } ...
-        { 'style'  'edit'       'string' ''  'tag' 'session_description' } ...
+        { 'style'  'edit'       'string' 'Exported from EEGLAB'  'tag' 'session_description' } ...
         { 'style'  'text'       'string' 'Data identifier' } ...
         { 'style'  'edit'       'string' subject 'tag' 'identifier' } ...
         { 'style'  'text'       'string' 'Session start time (dd-mmm-yyyy HH:MM:SS)' } ...
@@ -152,6 +157,8 @@ if nargin  < 3
         { 'style'  'edit'       'string' ''  'tag' 'manufacturer' } ...
         { 'style'  'text'       'string' 'EEG device description' } ...
         { 'style'  'edit'       'string' ''  'tag' 'manufacturerdescription' } ...
+        { 'style'  'text'       'string' 'Electrode locations' } ...
+        { 'style'  'edit'       'string' ''  'tag' 'electrodelocations' } ...
         { 'style'  'text'       'string' ['Event fields to export' 10 '(latency and duration always exported)' ] } ...
         { 'style'  'listbox'    'string' colnames  'tag' 'eventfields' 'max', 2, 'value' [1:length(colnames)]} ...
         { 'style'  'checkbox'   'string' 'Export channel (x,y,z) locations' 'tag' 'exportlocs'} ...
@@ -160,10 +167,10 @@ if nargin  < 3
     geo = [2 1];
     geometry = {1 geo   geo   geo   geo   geo   geo   geo   1 ...
                 1 geo   geo   geo   geo   geo   1 ...
-                1 geo   geo   geo   1 };
+                1 geo   geo   geo   geo   1 };
     geomvert = [1 1     1     1     1     1     1     1     1 ...
                 1 1     1     1     1     1     1 ... 
-                1 1     1     1.8   1 ];
+                1 1     1     1     1.8   1 ];
     
     [~,~,~,res] = inputgui( 'geometry', geometry, 'geomvert', geomvert, 'uilist', promptstr, 'helpcom', 'pophelp(''pop_nwbimport'')', 'title', 'Import NWB data -- pop_nwbimport()');
     if isempty(res), return; end    
@@ -177,11 +184,12 @@ else
 end
 
 opt = finputcheck(options, {
-    'session_description' 'string' '' '';
+    'session_description' 'string' '' 'Exported from EEGLAB';
     'identifier' 'string' '' subject;
     'session_start_time' 'string' '' '';
+    'timestamps_reference_time' 'string' '' '';
     'general_experimenter' 'string' '' '';
-    'general_session_id' 'string' '' '';
+    'general_session_id' 'string' '' num2str(EEG.session);
     'general_institution' 'string' '' '';
     'general_related_publications' 'string' '' '';
     'subject_id' 'string' '' char(EEG.subject);
@@ -191,6 +199,7 @@ opt = finputcheck(options, {
     'sex' 'string' '' '';
     'manufacturer' 'string' '' '';
     'manufacturerdescription' 'string' '' '';
+    'electrodelocations' 'string' '' '';
     'eventfields' 'cell' {} colnames; ...
     'exportlocs'  'string' { 'on' 'off' } 'off' });
 if ischar(opt), error(opt); end
@@ -198,27 +207,31 @@ if ischar(opt), error(opt); end
 if ~isempty(opt.session_start_time)
     opt.session_start_time = datetime(datenum(opt.session_start_time, 'dd-mmm-yyyy HH:MM:SS'));
 end
+if ~isempty(opt.timestamps_reference_time)
+    opt.timestamps_reference_time = datetime(datenum(opt.timestamps_reference_time, 'dd-mmm-yyyy HH:MM:SS'));
+end
 
 nwb = NwbFile( ...
     'session_description', opt.session_description,...
     'identifier',          opt.identifier, ...
-    'session_start_time', datetime(0, 0, 0, 0, 0, 0, 'TimeZone', 'local'), ...
-    'timestamps_reference_time', datetime(0, 0, 0, 0, 0, 0, 'TimeZone', 'local'));
+    'session_start_time',  opt.session_start_time, ...
+    'timestamps_reference_time', opt.timestamps_reference_time, ...
+    'general_experimenter', opt.general_experimenter, ...
+    'general_session_id',   opt.general_session_id, ...
+    'general_institution',  opt.general_institution, ...
+    'general_related_publications', opt.general_related_publications);
 
 % export subject information
-options = { 'subject_id' subject 'species' 'human' 'description' 'exported from EEGLAB' };
-if isfield(EEG, 'age')
-    options = [ options { 'age' EEG.age }];
-end
-if isfield(EEG, 'gender')
-    options = [ options { 'sex' EEG.gender }];
-end
+options = { 'subject_id',   opt.subject_id, ...
+            'species',      opt.species, ...
+            'description',  opt.subjectdescription, ...
+            'age',          opt.age, ...
+            'sex',          opt.sex};
 nwb.general_subject = types.core.Subject(options{:});
 
 % export event information
 if ~isempty(EEG.event)
-    colnames = fieldnames(EEG.event);
-    colnames = setdiff(colnames, { 'urevent', 'latency', 'duration' });
+    colnames = opt.eventfields;
     colnames = [ {'start_time', 'stop_time' }'; colnames ];
     options = { 'colnames', colnames, 'description', 'Events exported from EEGLAB', ...
         'id', types.hdmf_common.ElementIdentifiers('data', 0:length(EEG.event)-1) };
@@ -255,33 +268,43 @@ chanlocs = struct([]);
 if ~isempty(EEG.chanlocs)
     chanlocs = EEG.chanlocs;
 else
+    % create labels
     for iChan = 1:EEG.nbchan
         chanlocs(iChan).labels = sprintf('E%d', iChan);
     end
 end
 
+if strcmpi(opt.exportlocs, 'on')
+    colnames = {'location', 'group', 'group_name', 'label', 'x', 'y', 'z'};
+else
+    colnames = {'location', 'group', 'group_name', 'label'};
+end
 ElectrodesDynamicTable = types.hdmf_common.DynamicTable(...
-    'colnames', {'location', 'group', 'group_name', 'label'}, 'description', 'all electrodes');
+    'colnames', colnames, 'description', 'all electrodes');
 
 Device = types.core.Device(...
-    'description', 'EEG recording device', ...
-    'manufacturer', 'Unknown' ...
-    );
+    'description', opt.manufacturerdescription, ...
+    'manufacturer', opt.manufacturer);
+
 nwb.general_devices.set('array', Device);
 shankGroupName = 'all_electrodes';
 EGroup = types.core.ElectrodeGroup( ...
-    'description', 'all electrode groups', ...
-    'location', 'scalp', ...
+    'description', 'all electrodes', ...
+    'location', opt.electrodelocations, ...
     'device', types.untyped.SoftLink(Device) ...
     );
 
 nwb.general_extracellular_ephys.set(shankGroupName, EGroup);
 for iChan = 1:length(chanlocs)
+    options = {};
+    if strcmpi(opt.exportlocs, 'on')
+        options = { 'x' chanlocs(iChan).X 'y' chanlocs(iChan).Y 'z' chanlocs(iChan).Z };
+    end
     ElectrodesDynamicTable.addRow( ...
-        'location', 'unknown', ...
+        'location', chanlocs(iChan).labels, ...
         'group', types.untyped.ObjectView(EGroup), ...
-        'group_name', shankGroupName, ...
-        'label', chanlocs(iChan).labels);
+        'group_name', char(chanlocs(iChan).type), ...
+        'label', chanlocs(iChan).labels, options{:});
 end
 nwb.general_extracellular_ephys_electrodes = ElectrodesDynamicTable;
 %ElectrodesDynamicTable.toTable()
@@ -296,9 +319,9 @@ electrode_table_region = types.hdmf_common.DynamicTableRegion( ...
 electrical_series = types.core.ElectricalSeries( ...
     'starting_time', 0.0, ... % seconds
     'starting_time_rate', EEG.srate, ... % Hz
-    'data', EEG.data, ...
+    'data', EEG.data*1e6, ...
     'electrodes', electrode_table_region, ...
-    'data_unit', 'microvolts');
+    'data_unit', 'volts');
 nwb.acquisition.set('ElectricalSeries', electrical_series);
 nwbExport(nwb, fileName);
 
