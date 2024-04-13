@@ -1,4 +1,4 @@
-% pop_nwbimport() - import NWB file containing time series data as an EEGLAB dataset.
+% POP_NWBIMPORT - import NWB file containing time series data as an EEGLAB dataset.
 %
 % Usage:
 %   >> EEG = pop_nwbimport; % pop up window to input arguments
@@ -11,6 +11,8 @@
 %                 event type. The default is to use the first field.
 %   'importspikes' - ['on'|'off'] import spikes when 'on' and when spikes
 %                 are present.
+%   'ElectricalSeries' - [string] name of the electrical time series to use.
+%                         Default is to use the first one available.
 %
 % Output
 %   EEG - EEG dataset structure or array of structures
@@ -92,7 +94,9 @@ else
     options = varargin;
 end
 
-opt = finputcheck(options, { 'typefield' 'string' '' ''; 'importspikes' 'string' { 'on' 'off' } 'off'});
+opt = finputcheck(options, { 'typefield' 'string' '' ''; 
+                             'importspikes' 'string' { 'on' 'off' } 'off'; ...
+                             'ElectricalSeries' 'string' '' ''});
 if ischar(opt)
     error(opt);
 end
@@ -100,14 +104,26 @@ end
 EEG = eeg_emptyset;
 
 % Scan fields to find data
+keys = data.acquisition.keys;
 values = data.acquisition.values;
-
-for iVal = 1:length(values)
-    if isa(data.acquisition.values{iVal}, 'types.core.ElectricalSeries')
-        indVal = iVal;
-        fprintf('Selecting the ElectricalSeries at position %d\n', iVal);
-        break;
+indVal = [];
+if ~isempty(opt.ElectricalSeries)
+    indVal = strmatch( opt.ElectricalSeries, keys, 'exact');
+else
+    for iVal = 1:length(values)
+        if isa(data.acquisition.values{iVal}, 'types.core.ElectricalSeries')
+            fprintf('Found available ElectricalSeries: "%s"\n', keys{iVal});
+            if isempty(indVal)
+                indVal = iVal;
+                fprintf('Selecting the ElectricalSeries "%s"\n', keys{iVal});
+            else
+                eeglab_warning([ 'More than one ElectricalSeries found in the file.' 10 'Using the first one. Use command line parameters to select another one.'])
+            end
+        end
     end
+end
+if isempty(indVal)
+    error('No usable data (ElectricalSeries) found in file.')
 end
 EEG.data = values{indVal}.data.load;
 
@@ -130,8 +146,8 @@ EEG = eeg_checkset(EEG);
 if ~isempty(values{indVal}.starting_time_rate)
     EEG.srate = values{indVal}.starting_time_rate;
 else
-    fprintf('Sampling rate not found, using the ''timestamps'' information\n')
-    fprintf('and computing approximate sampling rate (data will not be interpolated)\n')
+    eeglab_warning([ 'Sampling rate not found, using the ''timestamps'' information' 10 ...
+        'and computing approximate sampling rate (data will not be interpolated' ])
     timestamps = values{indVal}.timestamps.load;
     EEG.srate = 1/mean(diff(timestamps));
 end
@@ -194,3 +210,14 @@ if isempty(options)
 else
     com = sprintf('EEG = pop_nwbimport(''%s'', %s);', fileName, vararg2str(options));
 end
+
+function eeglab_warning(msg)
+
+if nargin < 1
+    error('eeglab_warning needs at least one argument');
+end
+
+res = warning('backtrace');
+warning('backtrace', 'off');
+warning(msg)
+warning('backtrace', res.state);
