@@ -50,7 +50,7 @@ function vers = eegplugin_nwbio(fig, trystrs, catchstrs)
     
     % menu callbacks
     % --------------
-    comcnt = [ trystrs.no_check '[EEGTMP LASTCOM] = pop_nwb2eeglab;'  catchstrs.new_non_empty ];
+    comcnt = [ trystrs.no_check '[EEGTMP, LASTCOM] = pop_nwbimport;'  catchstrs.new_non_empty ];
                 
     % create menus
     % ------------

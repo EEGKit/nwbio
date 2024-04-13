@@ -1,8 +1,8 @@
-% pop_nwb2eeglab() - import NWB file containing time series data as an EEGLAB dataset.
+% pop_nwbimport() - import NWB file containing time series data as an EEGLAB dataset.
 %
 % Usage:
-%   >> EEG = pop_nwb2eeglab; % pop up window to input arguments
-%   >> EEG = pop_nwb2eeglab(filename, 'key', val);
+%   >> EEG = pop_nwbimport; % pop up window to input arguments
+%   >> EEG = pop_nwbimport(filename, 'key', val);
 %
 % Optional inputs:
 %   filename  - [string] dataset filename. Default pops up a graphical
@@ -46,12 +46,12 @@
 % ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
 % THE POSSIBILITY OF SUCH DAMAGE.
 
-function [EEG, com] = pop_nwb2eeglab(fileName, varargin)
+function [EEG, com] = pop_nwbimport(fileName, varargin)
 
 EEG = [];
 com = '';
 if nargin < 1
-	[filename, filepath] = uigetfile('*.*', 'Select NWB file -- pop_nwb2eeglab()', 'multiselect', 'off');
+	[filename, filepath] = uigetfile('*.*', 'Select NWB file -- pop_nwbimport()', 'multiselect', 'off');
     if isequal(filename, 0)
         return;
     end
@@ -78,7 +78,7 @@ if (length(condValues) > 1 || ~isempty(data.units)) && nargin < 2
         promptstr{2} = { 'style' 'text' 'string' '      No event condition found' };
     end
     
-    [~,~,~,res] = inputgui( 'geometry', geometry, 'geomvert', geomvert, 'uilist', promptstr, 'helpcom', 'pophelp(''pop_nwb2eeglab'')', 'title', 'Import NWB data -- pop_nwb2eeglab()');
+    [~,~,~,res] = inputgui( 'geometry', geometry, 'geomvert', geomvert, 'uilist', promptstr, 'helpcom', 'pophelp(''pop_nwbimport'')', 'title', 'Import NWB data -- pop_nwbimport()');
     if isempty(res), return; end
 
     options = {};
@@ -128,7 +128,7 @@ EEG = eeg_checkset(EEG);
 
 % sampling rate
 if ~isempty(values{indVal}.starting_time_rate)
-    EEG.srate = 1/values{indVal}.starting_time_rate;
+    EEG.srate = values{indVal}.starting_time_rate;
 else
     fprintf('Sampling rate not found, using the ''timestamps'' information\n')
     fprintf('and computing approximate sampling rate (data will not be interpolated)\n')
@@ -190,7 +190,7 @@ end
 
 % history
 if isempty(options)
-    com = sprintf('EEG = pop_nwb2eeglab(''%s'');', fileName);
+    com = sprintf('EEG = pop_nwbimport(''%s'');', fileName);
 else
-    com = sprintf('EEG = pop_nwb2eeglab(''%s'', %s);', fileName, vararg2str(options));
+    com = sprintf('EEG = pop_nwbimport(''%s'', %s);', fileName, vararg2str(options));
 end
