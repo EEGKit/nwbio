@@ -26,7 +26,7 @@ Use menu item **File > EEGLAB extensions** and search for the "nwbio" plugin. On
 install it. Then, use the menu item **File > Import data > From NWB file** to import a file. Once you
 have selected a file, the following graphical interface will pop up.
 
-![Screenshot 2024-04-13 at 3 12 11 PM](https://github.com/sccn/nwbio/assets/1872705/5a92bdce-7b48-43e6-91b0-c007e4e8d95b)
+![Screenshot 2024-04-13 at 3 12 11 PM](https://github.com/sccn/nwbio/assets/1872705/a25b146c-f235-4e39-ac7d-979a29e45796)
 
 It lets you decide which event information you want to use as the primary information for EEGLAB (EEGLAB event type). 
 EEGLAB perform most operations on event types, although it is also possible to use other fields. Note that all fields
