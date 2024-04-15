@@ -7,8 +7,9 @@
 % Optional inputs:
 %   filename  - [string] dataset filename. Default pops up a graphical
 %               interface to browse for a data file.
-%   'typefield' - [string] indicate the NWB trial field to use for EEGLAB
-%                 event type. The default is to use the first field.
+%   'typefield' - [string|integer] indicate the NWB trial field to use for EEGLAB
+%                 event type. The default is to use the first field. May
+%                 also be an index.
 %   'importspikes' - ['on'|'off'] import spikes when 'on' and when spikes
 %                 are present.
 %   'ElectricalSeries' - [string] name of the electrical time series to use.
@@ -73,7 +74,7 @@ if any(strmatch('type', condValues, 'exact'))
     defaulttypefield = 'type';
 end
 
-if (length(condValues) > 1 || ~isempty(data.units)) && nargin < 2 && isempty(defaulttypefield)
+if (length(condValues) > 1 || ~isempty(data.units)) && nargin < 2 && (isempty(defaulttypefield) || nargin < 1)
     promptstr    = { ...
         { 'style'  'text'       'string' ['Which event information is primary' 10 '(this will define EEG event types):'] } ...
         { 'style'  'popupmenu'  'string' condValues 'tag' 'typefield' 'value' 1 'enable', fastif(isempty(condValues), 'off', 'on') } ...
@@ -99,7 +100,7 @@ else
     options = varargin;
 end
 
-opt = finputcheck(options, { 'typefield' 'string' '' defaulttypefield; 
+opt = finputcheck(options, { 'typefield' { 'string' 'integer' } { '' [] } defaulttypefield; 
                              'importspikes' 'string' { 'on' 'off' } 'off'; ...
                              'ElectricalSeries' 'string' '' ''});
 if ischar(opt)
@@ -177,6 +178,7 @@ if ~isempty(data.intervals_trials.start_time)
     condValues = data.intervals_trials.vectordata.keys;
     if ~isempty(condValues)
         if isempty(opt.typefield), opt.typefield = condValues{1}; end
+        if isnumeric(opt.typefield), opt.typefield = condValues{opt.typefield}; end
     end
     % this section needs optimization to load all values at once
     % see channel import above where arrays are created
@@ -201,7 +203,7 @@ if ~isempty(data.intervals_trials.start_time)
 end
 
 % import spikes 
-if strcmpi(opt.importspikes, 'on')
+if strcmpi(opt.importspikes, 'on') && ~isempty(data.units)
     fprintf('Importing Spike information...\n')
     unitsId = data.units.id.data.load;
     numUnits = length(unitsId);
@@ -219,6 +221,9 @@ if strcmpi(opt.importspikes, 'on')
         EEG.event = [ EEG.event eventTmp' ];
     end
 end
+EEG.nbchan = size(EEG.data,1);
+EEG.pnts   = size(EEG.data,2);
+EEG.trials = 1;
 EEG = eeg_checkset(EEG, 'eventconsistency');
 EEG = eeg_checkset(EEG);
 
