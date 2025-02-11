@@ -49,3 +49,5 @@ the template channel location, you may leave this option unchecked.
 # Version history
 
 1.0 - import, and export, tested on multiple files
+
+1.1 - update matnwb to fix issue https://github.com/NeurodataWithoutBorders/matnwb/issues/650

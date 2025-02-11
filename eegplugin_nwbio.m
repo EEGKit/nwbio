@@ -29,7 +29,7 @@
 
 function vers = eegplugin_nwbio(fig, trystrs, catchstrs)
 
-    vers = 'nwbio1.0';
+    vers = 'nwbio1.1';
     if nargin < 3
         error('eegplugin_nwbio requires 3 arguments');
     end
@@ -46,12 +46,15 @@ function vers = eegplugin_nwbio(fig, trystrs, catchstrs)
     
     % find import data menu
     % ---------------------
-    menui = findobj(fig, 'tag', 'import data');
+    menui1 = findobj(fig, 'tag', 'import data');
+    menui2 = findobj(fig, 'tag', 'export');
     
     % menu callbacks
     % --------------
-    comcnt = [ trystrs.no_check '[EEGTMP, LASTCOM] = pop_nwbimport;'  catchstrs.new_non_empty ];
+    comcnt1 = [ trystrs.no_check '[EEGTMP, LASTCOM] = pop_nwbimport;'  catchstrs.new_non_empty ];
+    comcnt2 = [ trystrs.no_check '[LASTCOM] = pop_nwbexport(EEG);'     catchstrs.add_to_hist ];
                 
     % create menus
     % ------------
-    uimenu( menui, 'label', 'From NWB file', 'separator', 'on', 'callback', comcnt);
+    uimenu( menui1, 'label', 'From NWB file', 'separator', 'on', 'callback', comcnt1);
+    uimenu( menui2, 'label', 'To NWB file', 'separator', 'on', 'callback', comcnt2);

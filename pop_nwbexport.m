@@ -172,7 +172,7 @@ if nargin < 2
                 1 1     1     1     1     1     1 ... 
                 1 1     1     1     1.8   1 ];
     
-    [~,~,~,res] = inputgui( 'geometry', geometry, 'geomvert', geomvert, 'uilist', promptstr, 'helpcom', 'pophelp(''pop_nwbimport'')', 'title', 'Import NWB data -- pop_nwbimport()');
+    [~,~,~,res] = inputgui( 'geometry', geometry, 'geomvert', geomvert, 'uilist', promptstr, 'helpcom', 'pophelp(''pop_nwbexport'')', 'title', 'Import NWB data -- pop_nwbexport()');
     if isempty(res), return; end    
     if ~isempty(res.eventfields)
         res.eventfields = colnames(res.eventfields);
