@@ -1,6 +1,8 @@
-# NWB-io EEGLAB plugin
+![NWBio](https://github.com/sccn/nwbio/assets/1872705/c7f70411-9d86-4df5-8de4-6e0a69594785)
 
-This plugin imports data from the Neuroscience Without Borders
+# NWBio EEGLAB plugin
+
+This plugin imports data from the Neurodata Without Borders
 data format. Time series, channel information, and 
 event information are imported. Use the EEGLAB import/export menus to
 import/export files, or use the command line function pop_nwbimport.m
