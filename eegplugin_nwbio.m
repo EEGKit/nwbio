@@ -29,7 +29,7 @@
 
 function vers = eegplugin_nwbio(fig, trystrs, catchstrs)
 
-    vers = 'nwbio1.1';
+    vers = 'nwbio1.2';
     if nargin < 3
         error('eegplugin_nwbio requires 3 arguments');
     end

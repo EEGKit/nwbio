@@ -203,12 +203,20 @@ opt = finputcheck(options, {
     'eventfields' 'cell' {} colnames; ...
     'exportlocs'  'string' { 'on' 'off' } 'off' });
 if ischar(opt), error(opt); end
-
+% ensure required datetime fields are set
 if ~isempty(opt.session_start_time)
     opt.session_start_time = datetime(datenum(opt.session_start_time, 'dd-mmm-yyyy HH:MM:SS'));
+else
+    opt.session_start_time = datetime('now','TimeZone','UTC');
 end
 if ~isempty(opt.timestamps_reference_time)
     opt.timestamps_reference_time = datetime(datenum(opt.timestamps_reference_time, 'dd-mmm-yyyy HH:MM:SS'));
+else
+    opt.timestamps_reference_time = opt.session_start_time;
+end
+% ensure ElectrodeGroup.location is non‐empty
+if isempty(opt.electrodelocations)
+    opt.electrodelocations = 'unspecified';
 end
 
 nwb = NwbFile( ...
@@ -323,7 +331,9 @@ electrical_series = types.core.ElectricalSeries( ...
     'electrodes', electrode_table_region, ...
     'data_unit', 'volts');
 nwb.acquisition.set('ElectricalSeries', electrical_series);
+% nwb.general_was_generated_by.set('ElectricalSeries', electrical_series);
+
 nwbExport(nwb, fileName);
 
 % history
-com = sprintf('EEG = pop_nwbexport(''%s'');', fileName);
+com = sprintf('pop_nwbexport(%s, ''%s'');', inputname(1), fileName);
